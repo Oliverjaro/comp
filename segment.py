@@ -4,23 +4,35 @@ import pygame
 from constants import SEG_W, SEG_H, HP_BASE, HP_BOOST, WHITE, GOLD, clamp, _load_sprite
 
 
-class Segment:
+class Segment: #Class-level flags and colours shared across all segments
     _loaded = False
     _col_calm = (210, 170, 110)
     _col_frenzy = (220, 70, 50)
 
-    def __init__(self, x, y, hp, is_head=False):
+    def __init__(self, x, y, hp, is_head=False): 
+        #Logical position of the segment
         self.x, self.y = float(x), float(y)
         self.is_head = is_head
+        
+        #Health and scaling properties
         self.max_hp = self.hp = hp
+        
+        #Chest drop flags
         self.has_chest = False
         self.chest_tier = "normal"
+        
+        #Short flash timer after being hit
         self.flash = 0.0
+       
+        #Per segment phase for wobble animation
         self._phase = random.uniform(0, 2 * math.pi)
+
+        #Collision rect for hits with bullets/player
         self.hit_rect = pygame.Rect(0, 0, SEG_W, SEG_H)
         self.hit_rect.center = (int(x), int(y))
 
     def scale_hp(self, plvl):
+        #Increase HP based on player level/progrression
         want = int(HP_BASE + HP_BOOST * plvl)
         if want > self.max_hp:
             bump = want - self.max_hp
@@ -28,15 +40,18 @@ class Segment:
             self.hp = min(self.max_hp, self.hp + max(1, bump // 2))
 
     def hit(self, dmg):
+        #Apply damage and trigger a brief flash; returns True if killed
         self.hp -= dmg
         self.flash = 0.15
         return self.hp <= 0
 
     def collides(self, r):
+        #Checks collision with a slightly inflated hitbox
         return self.hit_rect.inflate(6, 6).colliderect(r)
 
     @classmethod
     def _init_sprites(cls):
+        #Lazy-load segment sprites and font once
         if cls._loaded: return
         cls._loaded = True
         cls._font = pygame.font.SysFont("consolas", 15, bold=True)
@@ -45,12 +60,13 @@ class Segment:
         cls._spr_angry = _load_sprite("wormangry.png", (dim, dim))
 
     def draw(self, surf, dt, nxt=None, frenzy=False):
+        #Render the segment (head/body, HP text, and chest icon)
         Segment._init_sprites()
         hpct = clamp(self.hp / max(1, self.max_hp), 0.0, 1.0)
         wobble = math.sin(pygame.time.get_ticks() / 1000.0 * 2.5 + self._phase)
         cx, cy = int(self.x), int(self.y)
         base_col = self._col_frenzy if frenzy else self._col_calm
-        radius = (SEG_W + 10) // 2 if self.is_head else max(8, int(SEG_W // 2 + wobble))
+        radius = (SEG_W + 10) // 2 if self.is_head else max(8, int(SEG_W // 2 + wobble)) #Head radius is fixed, body wobbles slightly.
         # Joint dot
         if nxt:
             jc = tuple(max(0, c - 30) for c in base_col)
@@ -93,3 +109,4 @@ class Segment:
             pygame.draw.rect(surf, GOLD, cr, width=1, border_radius=2)
             pygame.draw.rect(surf, GOLD, pygame.Rect(cx - 2, cy - radius - 8, 4, 4))
         self.flash = max(0.0, self.flash - dt)
+
