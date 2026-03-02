@@ -1,4 +1,3 @@
-"""Bullet entity."""
 import math, pygame
 from constants import W, BULLET_SPEED
  
@@ -23,7 +22,7 @@ class Bullet:
         self.hit_segs = set()
  
     def update(self, dt):
-        """Move the bullet and update its collision rect."""
+        # Move the bullet and update its collision rect.
         # Integrate position using velocity and delta time
         self.x += self.vx * dt
         self.y += self.vy * dt
@@ -36,5 +35,6 @@ class Bullet:
             self.alive = False
  
     def draw(self, s):
-        """Render the bullet as a simple cyan rectangle."""
+        #Render the bullet as a simple cyan rectangle.
         pygame.draw.rect(s, (100, 255, 255), self.rect)
+
