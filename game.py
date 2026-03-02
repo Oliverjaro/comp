@@ -1,3 +1,4 @@
+""" This file contains the `Game` class which controls the main loop, input handling, updates and drawing. """
 import math
 import pygame
 from constants import W, H, FPS, WHITE, GOLD, GRAY, GS, gen_upgrades, gen_background, load_high_scores, save_high_score
@@ -7,6 +8,7 @@ from worm import Worm
 
 class Game:
     def __init__(self):
+        # Initialise pygame and create screen, clock and fonts
         pygame.init()
         self.scr = pygame.display.set_mode((W, H))
         pygame.display.set_caption("WormHunter")
@@ -14,19 +16,24 @@ class Game:
         self.f_s = pygame.font.SysFont("Arial", 20)
         self.f_m = pygame.font.SysFont("Arial", 36)
         self.f_l = pygame.font.SysFont("Arial", 72)
+        # Background image and initial game state
         self.bg = gen_background(W, H)
         self.state = GS.MENU
         self.score = 0
+        # Main game objects
         self.player = Player()
         self.worm = Worm()
         self.bullets = []
+        # Upgrade menu options and selection index
         self.upg_opts = []
         self.upg_hi = 0
+        # High score list loaded from disk
         self.hi_scores = load_high_scores()
         self._saved = False
         self.running = True
 
     def reset(self):
+        # Reset game to a fresh playing state
         self.score = 0
         self._saved = False
         self.player = Player()
@@ -37,19 +44,24 @@ class Game:
         self.state = GS.PLAYING
 
     def _txt(self, font, text, color, y):
+        # Draw centered text on the screen at vertical position y
         s = font.render(text, True, color)
         self.scr.blit(s, s.get_rect(centerx=W // 2, centery=y))
 
     def _save(self):
+        # Save the score once when game ends
         if not self._saved:
-            self.hi_scores = save_high_score(self.score); self._saved = True
+            self.hi_scores = save_high_score(self.score)
+            self._saved = True
 
     def _overlay(self, a=160):
+        # Draw a semi-transparent overlay (fade effect)
         ov = pygame.Surface((W, H), pygame.SRCALPHA)
         ov.fill((0, 0, 0, a))
         self.scr.blit(ov, (0, 0))
 
     def run(self):
+        # Main loop: handle events, update and draw
         while self.running:
             dt = min(self.clk.tick(FPS) / 1000.0, 0.05)
             for e in pygame.event.get():
@@ -64,6 +76,7 @@ class Game:
         pygame.quit()
 
     def _input(self, key):
+        # Handle key input depending on current state
         if self.state == GS.MENU:
             if key == pygame.K_SPACE:
                 self.reset()
@@ -89,6 +102,7 @@ class Game:
                 self.running = False
 
     def _pick(self, idx):
+        # Player picks an upgrade option by index
         if 0 <= idx < len(self.upg_opts):
             self.player.apply(self.upg_opts[idx])
             self.upg_opts = []
@@ -96,24 +110,30 @@ class Game:
             self.state = GS.PLAYING
 
     def _update(self, dt):
+        # Update player, bullets and worm, then check collisions
         self.bullets.extend(self.player.update(dt, pygame.key.get_pressed()))
         for b in self.bullets:
             b.update(dt)
+        # Remove dead bullets
         self.bullets = [b for b in self.bullets if b.alive]
         self.worm.update(dt)
         self._collisions()
+        # If no worm segments left the player wins
         if not self.worm.segs:
             self.state = GS.WIN
             self._save()
 
     def _collisions(self):
+        # Handle bullet <-> worm collisions and player collisions
         to_rm, chests = [], []
         for b in self.bullets:
             if not b.alive:
                 continue
             for si, seg in enumerate(self.worm.segs):
-                if id(seg) in b.hit_segs or not seg.collides(b.rect): continue
+                if id(seg) in b.hit_segs or not seg.collides(b.rect):
+                    continue
                 b.hit_segs.add(id(seg))
+                # If segment dies give a larger score and possibly a chest
                 if seg.hit(b.dmg):
                     self.score += 100
                     if seg.has_chest:
@@ -121,20 +141,25 @@ class Game:
                     if si not in to_rm:
                         to_rm.append(si)
                 else:
+                    # Small score for hitting but not killing
                     self.score += 10
                 b.pierc -= 1
                 if b.pierc <= 0:
                     b.alive = False
                     break
+        # Remove killed segments from the worm (reverse index order)
         for i in sorted(to_rm, reverse=True):
             if i < len(self.worm.segs):
                 self.worm.segs.pop(i)
+        # Mark the head segment
         for i, s in enumerate(self.worm.segs):
             s.is_head = (i == 0)
+        # If a chest was found open upgrade menu
         if chests and self.worm.segs:
             self.upg_opts = gen_upgrades(self.player, chests[0])
             self.upg_hi = 0
             self.state = GS.UPGRADE
+        # Check if worm hits the player
         if self.state == GS.PLAYING:
             hb = self.player.rect.inflate(-10, -10)
             for seg in self.worm.segs:
@@ -144,6 +169,7 @@ class Game:
                     break
 
     def _draw(self, dt):
+        # Draw background and current screen depending on state
         self.scr.blit(self.bg, (0, 0))
         if self.state == GS.MENU:
             self._draw_menu()
@@ -160,8 +186,8 @@ class Game:
                 self._draw_end("VICTORY!", (50, 255, 50), "You destroyed the worm!")
 
     def _draw_play(self, dt):
+        # Draw worm, bullets and player
         self.worm.draw(self.scr, dt)
         for b in self.bullets:
             b.draw(self.scr)
         self.player.draw(self.scr)
-
